@@ -1,6 +1,7 @@
 # Modular Lidar ROS Arduino
 
 I have used:
+* Arduino DUE
 * YDLIDAR X4 Lidar.
 * Raspberry Pi 3 Model B. (or Raspberry Pi 4)
 
@@ -378,7 +379,16 @@ Something we would want to be able to do is to access the ROS communication mess
 * * `ROS_IP` is its own IP.
 * * `ROS_MASTER_URI` is HTTP://<its own IP>:11311.
 
-In this example (the IPs would probably be different in your network), on the robot, we set: `export ROS_IP=192.168.1.5 export ROS_MASTER_URI=http://192.168.1.5:11311`. Consider to include in **.bashrc** on home user folder.
+In this example (the IPs would probably be different in your network), on the robot, we set: `export ROS_IP=192.168.1.5 export ROS_MASTER_URI=http://192.168.1.5:11311`. Consider to include in **.bashrc** on home user folder OR:
+### /usr/sbin/roscore-launcher
+
+```
+#!/bin/bash
+source /opt/ros/noetic/setup.sh
+ROS_IP=192.168.1.5
+ROS_MASTER_URI=http://192.168.1.5:11311
+roscore
+```
 
 #### Add to .bashrc:
 `export ROS_IP=192.168.1.5`
