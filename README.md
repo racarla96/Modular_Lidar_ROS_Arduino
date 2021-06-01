@@ -24,28 +24,11 @@ Note: The Raspberry Pi 4 is more computationally capable than its predecessors. 
 
 Following the steps in [ROS Website - Wiki - Ubuntu Noetic](https://wiki.ros.org/noetic/Installation/Ubuntu) or pdf inside folder: **media\pdf\noetic_Installation_Ubuntu - ROS Wiki.pdf**
 
-## 3. Remotely connecting to ROS with Matlab
-Something we would want to be able to do is to access the ROS communication messages from our laptop. There are a couple of steps to do here. On the robot check enviroment variables of ROS with `printenv | grep ROS`.
-
-* On the Robot, find the `ROS_IP` and `ROSMASTER_URI`. These two things are the information both machines will need to communicate. Find the `ROS_IP` by running `ifconfig`. 
-
-* On the Master (robot), run `roscore &`. 
-* * `ROS_IP` is its own IP.
-* * `ROS_MASTER_URI` is HTTP://<its own IP>:11311.
-
-In this example (the IPs would probably be different in your network), on the robot, we set: `export ROS_IP=192.168.1.5 export ROS_MASTER_URI=http://192.168.1.5:11311`. Consider to include in **.bashrc** on home user folder.
-
-MATLAB Part
-
-#### Add to .bashrc:
-`export ROS_IP=192.168.1.5`
-`export ROS_MASTER_URI=http://192.168.1.5:11311`
-
-## 4. Testing the lidar
+## 3. Testing the lidar
 
 This step was a bit of a doozy. It took me a while to figure out how to get the lidar to run. But I did! So hopefully you won't have to suffer too.
 
-I am using the YDLIDAR G2 for this build. The first step is to install the necessary drivers. The driver is a ROS package.
+I am using the YDLIDAR X4 for this build. The first step is to install the necessary drivers. The driver is a ROS package.
 * `cd catkin_ws/src`
 * `git clone https://github.com/YDLIDAR/ydlidar_ros.git`
 * `cd ..`
@@ -67,15 +50,18 @@ It may look something like this! Background may vary :)
 #### Add to .bashrc:
 `source /home/ubuntu/catkin_ws/devel/setup.bash`
 
-## 6. ROS + Arduino; Getting them to talk to each other.
+## 4. ROS + Arduino; Getting them to talk to each other.
 As we know, the Raspberry Pi is the "brain" of our robot, perceiving the environment and planning in it. The Arduino, is simply used to control the motors of the robot. It doesn't do much thinking. So our goal here, is to get commands from the Raspberry Pi to the Arduino, so it'll be able to tell the motors how to move, accordingly. In high level, what we do is install *rosserial*, a ROS module that enables Arduino communication, on both the Raspberry Pi and the Arduino.
-* Following the steps from [the ROS website](http://wiki.ros.org/rosserial_arduino/Tutorials), we start with installing the package. `sudo apt-get install ros-kinetic-rosserial-arduino`, and then, `sudo apt-get install ros-kinetic-rosserial`. If you are using a ROS version different from Kinetic, change the word `kinetic` to your version.
+* Following the steps from [the ROS website](http://wiki.ros.org/rosserial_arduino/Tutorials), we start with installing the package. `sudo apt-get install ros-noetic-rosserial-arduino`, and then, `sudo apt-get install ros-noetic-rosserial`. If you are using a ROS version different from noetic, change the word `noetic` to your version.
 * In the following commands, substitute `catkin_ws` with the name of your catkin workspace.
-    ```cd catkin_ws/src
+  ```
+  cd catkin_ws/src
   git clone https://github.com/ros-drivers/rosserial.git
   cd catkin_ws
   catkin_make
   catkin_make install
+  sudo adduser $USER dialout
+  sudo adduser $USER tty
   ```
 * In your Arduino IDE, install the rosserial library. I found it the easiest to just do it from the IDE itself. Search for `rosserial` in the Library Manager and install it.
 
@@ -84,11 +70,18 @@ And that's it!
 For a test run, try the [HelloWorld example](http://wiki.ros.org/rosserial_arduino/Tutorials/Hello%20World), from the examples included with the rosserial library. Flash the Arduino with it, and connect to the Raspberry Pi. To run it:
 
 * On the Raspberry Pi `roscore`
-* In a second Raspberry Pi terminal, `rosrun rosserial_python serial_node.py /dev/ttyACM0`. Change `ttyACM0` with the port of your Arduino. You can check the port by navigating to `~/dev/`, and observing which files disappear and re-appear when the Arduino is disconnected and connected.
+* In a second Raspberry Pi terminal, `rosrun rosserial_python serial_node.py /dev/ttyS0`. Change `ttyS0` with the port of your Arduino. You can check the port by navigating to `~/dev/`, and observing which files disappear and re-appear when the Arduino is disconnected and connected. `rosrun rosserial_python serial_node.py _port:=/dev/ttyS0 _baud:=57600`
 * In a third terminal, `rostopic echo chatter` to see the messages being sent.
 
-## 7. Installing Hector-SLAM
+### Serial problems with Raspberry Pi 3
+
+- remove `console=serial0,115200` from `/boot/firmware/cmdline.txt` on Ubuntu
+- disable the serial console: `sudo systemctl stop serial-getty@ttyS0.service && sudo systemctl disable serial-getty@ttyS0.service`
+
+## 5. Installing Hector-SLAM
 This part is exciting! We will now add the mapping and localization functionality to our robot. We use the Hector-SLAM package, since it enables us to create maps and localize ourselves with a Lidar alone. I found [this video by Tiziano Fiorenzani](https://www.youtube.com/watch?v=Qrtz0a7HaQ4) and the [official resources on the ROS website](http://wiki.ros.org/hector_slam/Tutorials/SettingUpForYourRobot) helpful for setting Hector-SLAM up.
+* Previously, we need to install a library Eigen 3, Qt 5, OpenCV 4 and . `sudo apt install libeigen3-dev && sudo apt install qt5-default && sudo apt-get install ros-noetic-cv-bridge && sudo apt-get install ros-noetic-vision-opencv`
+* image transport, laser geometry, : `sudo apt-get install ros-noetic-theora-image-transport && sudo apt-get install  ros-noetic-laser-geometry`
 * Clone the GitHub repository to your catkin workspace. Navigate to the `src` folder and run `git clone https://github.com/tu-darmstadt-ros-pkg/hector_slam.git`.
 * [This may fail!, see sub-bullet for work-arounds] Build ROS by running `catkin_make` and then sourcing `setup.bash` with `source ~/catkin_ws/devel/setup.bash`.
 * * If your build gets stalled, or seems to be very slow. Do two things.
@@ -145,249 +138,247 @@ This should do the trick! Try it out!
 
 You should be able to see the results in Rviz. Choose the `/map` topic to visualize the map that was created.
 
-## 8. Lower Level Robot Control (That's where the Arduino comes in!)
-We now want to create a ROS package that would allow ROS communication to move the robot in the world. Again, [Tiziano Fiorenzani has a great video](https://www.youtube.com/watch?v=iLiI_IRedhI&t=194s) explaining the basics of what we are doing here. In a nutshell, we want to make a subscriber node that would run on the Arduino, and listen to the topic `/cmd_vel`. We would want to begin with sending commands from the keyboard to the robot.
+## 8. Lower Level Receive Position (That's where the Arduino comes in!)
+We now want to create a ROS package that would allow ROS communication to receive position of the robot. 
 
-To see what this topic is all about, run `rosrun teleop_twist_keyboard teleop_twist_keyboard.py`. In another terminal, run `rostopic info /cmd_vel` to see that this topic publishes the structure `geometry_msgs/Twist`. Run `rosmsg show geometry_msgs/Twist`,  to see the attributes of the message. They are a linear and angular commands. 
+Open four terminals, and run for each terminal one command in order and waiting the node init:
+* `roscore`
+* `roslauch ydlidar_ros X4.launch`
+* `roslaunch hector_slam_launch tutorial.launch`
+* `rosrun rosserial_python serial_node.py /dev/ttyS0`
 
-```
-geometry_msgs/Vector3 linear
-  float64 x
-  float64 y
-  float64 z
-geometry_msgs/Vector3 angular
-  float64 x
-  float64 y
-  float64 z
-
-```
-
-Let's create the ROS node on our Arduino. We would want to map values in precentages (that we get from `/cmd_vel`) to the range [0,255] that our motor controller understands.
-
-The entirety of the code for this node lives on the Arduino. So we use this sketch, and upload it. This is a very very simple sketch, that only supports forward and stopping motion. Check out the GitHub repo for a full program.
+And try the code in arduino DUE and check that the arduino is receiving the position.
 
 ```cpp
-
-#if (ARDUINO >= 100)
-#include <Arduino.h>
-#else
-#include <WProgram.h>
-#endif
-
 #include <ros.h>
-#include <geometry_msgs/Twist.h>
-// Pin variables for motors.
-const int right_pwm_pin = 5;
-const int right_dir_pin = A0;
-const int left_pwm_pin = 6;
-const int left_dir_pin = A1;
-const bool left_fwd = true;
-const bool right_fwd = false;
-
-// Default_speed.
-const int default_vel = 201;
-
 ros::NodeHandle  nh;
 
-void MoveFwd(const size_t speed) {
-  digitalWrite(right_dir_pin, right_fwd);
-  digitalWrite(left_dir_pin, left_fwd);
-  analogWrite(right_pwm_pin, speed);
-  analogWrite(left_pwm_pin, speed);
+#include <geometry_msgs/PoseStamped.h>
+uint32_t msgPoseLastId;
+geometry_msgs::PoseStamped msgPose;
+
+void msgPoseStampCb(const geometry_msgs::PoseStamped & msgPoseStamp){
+  msgPose = msgPoseStamp;
 }
 
-void MoveStop() {
-  digitalWrite(right_dir_pin, right_fwd);
-  digitalWrite(left_dir_pin, left_fwd);
-  analogWrite(right_pwm_pin, 0);
-  analogWrite(left_pwm_pin, 0);
-}
+ros::Subscriber <geometry_msgs::PoseStamped> poseSub("slam_out_pose", &msgPoseStampCb);
 
-void cmd_vel_cb(const geometry_msgs::Twist & msg) {
-  // Read the message. Act accordingly.
-  // We only care about the linear x, and the rotational z.
-  const float x = msg.linear.x;
-  const float z_rotation = msg.angular.z;
-
-  // Decide on the morot state we need, according to command.
-  if (x > 0 && z_rotation == 0) {
-    MoveFwd(default_vel);
-  }
-  else {
-    MoveStop();
-  }
-}
-ros::Subscriber<geometry_msgs::Twist> sub("cmd_vel", cmd_vel_cb);
-void setup() {
-  pinMode(right_pwm_pin, OUTPUT);    // sets the digital pin 13 as output
-  pinMode(right_dir_pin, OUTPUT);
-  pinMode(left_pwm_pin, OUTPUT);
-  pinMode(left_dir_pin, OUTPUT);
-  // Set initial values for directions. Set both to forward.
-  digitalWrite(right_dir_pin, right_fwd);
-  digitalWrite(left_dir_pin, left_fwd);
+void setup()
+{
+  SerialUSB.begin(115200);
   nh.initNode();
-  nh.subscribe(sub);
+  nh.subscribe(poseSub);
 }
 
-void loop() {
+void loop()
+{
   nh.spinOnce();
-  delay(1);
-}
-
-```
-We can control the robot from our laptop now! In separate terminal instances, run the following:
-* Allow Arduino communication with `rosrun rosserial_python serial_node.py /dev/ttyACM0`
-* Enable keyboard control with `rosrun teleop_twist_keyboard teleop_twist_keyboard.py`
-
-To make our lives easier for the next time we run the teleop node, we can create a launch file!
-
-## 9. Launch files!
-
-Creating a launch file is pretty simple, and can be done following the documentation on ROS.org.
-In our case, we end up with the following launch file to launch all the necessary nodes for keyboard teleoperation.
-
-```
-<launch>
-  <node pkg="rosserial_arduino" type="serial_node.py" name="serial_arduino">
-    <param name="port" value="/dev/ttyACM0" />
-  </node>
-
-  <node pkg="teleop_twist_keyboard" type="teleop_twist_keyboard.py" name="teleop_twist_keybord">  </node>
-
-
-</launch>
-```
-
-I have placed this launch file in the directory `~/catkin_ws/src/lidarbot/launch`. Don't forget to `catkin_make` and `source devel/setup.bash`  !
-
-We can now run the robot in a teleoperated mode with 
-
-`roslaunch lidarbot lidarbot_teleop.launch `
-
-## 9. Correcting angle offset.
-
-When I was designing the Lidar mount that I ended up 3D printing, I failed to look through the datasheet and design in in a way such that the "forward" direction of the Lidar would actually point forward. Let's correct that.
-
-Because of a lack of time, let's do a somewhat hack-y patch.
-
-Navigate to `/catkin_ws/src/ydlidar/sdk/src/CYdLidar.cpp`, and change the function `void CYdLidar::checkCalibrationAngle(const std::string &serialNumber) {` to the following. We are simply overriding the angle offset value provided by the Lidar model.
-
-```cpp
-void CYdLidar::checkCalibrationAngle(const std::string &serialNumber) {
-  m_AngleOffset = 0.0;
-  result_t ans;
-  offset_angle angle;
-  int retry = 0;
-  m_isAngleOffsetCorrected = false;
-
-  float override_offset_angle = 140.0;
-
-  while (retry < 2) {
-    ans = lidarPtr->getZeroOffsetAngle(angle);
-
-    if (IS_OK(ans)) {
-      if (angle.angle > 720 || angle.angle < -720) {
-        ans = lidarPtr->getZeroOffsetAngle(angle);
-
-        if (!IS_OK(ans)) {
-          continue;
-          retry++;
-        }
-      }
-
-      m_isAngleOffsetCorrected = (angle.angle != 720);
-      m_AngleOffset = angle.angle / 4.0;
-      printf("[YDLIDAR INFO] Successfully obtained the %s offset angle[%f] from the lidar[%s]\n"
-             , m_isAngleOffsetCorrected ? "corrected" : "uncorrrected", m_AngleOffset,
-             serialNumber.c_str());
-
-      std::cout << "Overriding offset angle to " << override_offset_angle << "\n";
-      m_AngleOffset  = override_offset_angle;
-      return;
-    }
-
-    retry++;
+  if(msgPose.header.seq != msgPoseLastId) {
+    SerialUSB.print(msgPose.pose.position.x);
+    SerialUSB.print(",");
+    SerialUSB.print(msgPose.pose.position.y);
+    SerialUSB.println();
+    msgPoseLastId = msgPose.header.seq;
   }
+  delay(10);
+}
 ```
 
-Great, our Lidar's arrow points forward now.
+## 9. Launch files at startup!
 
-## 10. Save a map.
+At times you create a script and then you want to have the scripts controlled by systemd or in some cases you wish to have the scripts getting restarted by itself when it is killed due to some reason. In such cases systemd in Linux helps to configure services which can be managed. To do so follow the following steps.
 
-In separate terminals, run:
+### Systemd setup
 
-`roslaunch lidarbot lidarbot_teleop.launch`
+For every command that you want to startup at boot, you can create a service and a script.
 
-`roslaunch ydlidar_ros lidar.launch `
+### /etc/systemd/system/roscore.service
 
-`roslaunch hector_slam_launch tutorial.launch `
+```
+cd /etc/systemd/system
+sudo nano roscore.service
+```
 
-And open Rviz from another linux machine, if possible.
+```
+[Unit]
+After=NetworkManager.service time-sync.target
+[Service]
+Type=simple
+User=ubuntu
+ExecStart=/usr/sbin/roscore-launcher
+#Restart=on-failure
+[Install]
+WantedBy=multi-user.target
+```
 
-Now, as you'll be driving around the space (slowly! We want the map to be built accurately, so no need to give it a hard time doing so.) you'll see a map starting to be build in real time, in Rviz. The lighter colors are empty space, and the dark ones are obstacles.
-
-When you think your map is sufficiently good, run the following:
-
-`rostopic pub syscommand std_msgs/String "savegeotiff"`
-
-This will save a .tif and a .tfw files in `~/catkin_ws/src/hector_slam/hector_geotiff/maps` directory.
-
-The map will look something like this:
-
-<img src="media/map.png" width="200" height="400" />
-
-## Simple application, wall following.
-
-We are done setting up our robot! It is SMORT and can drive on its own, and sense its environment. I will be updating [this Github repository](https://github.com/yoraish/lidar_bot) with code for some fun applications. The first thing on there is a wall following ROS package! 
-
-Happy building!
+### /usr/sbin/roscore-launcher
 
 
-<!-- Nexts: 
+```
+cd /usr/sbin/
+sudo nano roscore-launcher
+```
 
-* Ask for trajectory from start to goal(rviz?) with nav_msgs and move_base
-* Ros Node on the Arduino to be the controller - follow the trajectory (could be some sort of pure pursuit with a "buffer"y feeling (doesn't have to hit poses exactly, has threshold)). -->
-
-## Execute script on start-up
-
-
-If you are looking for a solution that works on bootup to the console, take a look at this link. Basic rundown:
-
-Create a file for your startup script and write your script in the file:
-
-`sudo nano /etc/init.d/superscript`
-
-#### For example:
 ```
 #!/bin/bash
-source /opt/ros/noetic/setup.bash
-export ROS_IP=192.168.1.5
-export ROS_MASTER_URI=http://192.168.1.5:11311
-source /home/ubuntu/catkin_ws/devel/setup.bash
-roscore &
-sleep 60
-roslaunch ydlidar_ros X4.launch &
+source /opt/ros/noetic/setup.sh
+roscore
 ```
 
-Save and exit: Ctrl+X, Y, Enter
+```
+sudo chmod +x roscore-launcher
+```
 
-Make the script executable:
+### Next make you script executable and enable your systemd scripts by exceuting the following in a terminal
 
-`sudo chmod 755 /etc/init.d/superscript`
+```
+sudo systemctl enable roscore.service
+sudo chmod +x /usr/sbin/roscore-launcher
+```
 
-For testing script to be run:
+### So, to launch the lidar and the other rospackage you can launch, for example:
 
-`sudo update-rc.d superscript start`
+### LIDAR
 
-For removing services you must use the -f parameter:
+### /etc/systemd/system/roslaunch-lidar.service
 
-`sudo update-rc.d -f superscript remove`
+```
+cd /etc/systemd/system
+sudo nano roslaunch-lidar.service
+```
 
-For configuring startup on boot, try:
+```
+[Unit]
+After=NetworkManager.service time-sync.target roscore.service
+[Service]
+Type=simple
+User=ubuntu
+ExecStartPre=/bin/sleep 20
+ExecStart=/usr/sbin/roslaunch-lidar
+ExecStop=/bin/kill -s SIGTERM -$MAINPID &
+[Install]
+WantedBy=multi-user.target
+```
 
-`sudo update-rc.d superscript enable`
+### /usr/sbin/roslaunch-lidar
 
-See all services:
 
-`service --status-all`
+```
+cd /usr/sbin/
+sudo nano roslaunch-lidar
+```
+
+```
+#!/bin/bash
+source /home/ubuntu/catkin_ws/devel/setup.bash
+export ROS_HOME=/home/ubuntu/.ros
+roslaunch ydlidar_ros X4.launch
+```
+
+### Next make you script executable and enable your systemd scripts by exceuting the following in a terminal
+
+```
+sudo systemctl enable roslaunch-lidar.service
+sudo chmod +x /usr/sbin/roslaunch-lidar
+```
+
+### HECTOR SLAM
+
+### /etc/systemd/system/roslaunch-hector-slam.service
+
+```
+sudo nano /etc/systemd/system/roslaunch-hector-slam.service
+```
+
+```
+[Unit]
+After=NetworkManager.service time-sync.target roscore.service roslaunch-lidar.service
+[Service]
+Type=simple
+User=ubuntu
+ExecStartPre=/bin/sleep 20
+ExecStart=/usr/sbin/roslaunch-hector-slam
+ExecStop=/bin/kill -s SIGTERM -$MAINPID &
+[Install]
+WantedBy=multi-user.target
+```
+
+### /usr/sbin/roslaunch-hector-slam
+
+
+```
+sudo nano /usr/sbin/roslaunch-hector-slam
+```
+
+```
+#!/bin/bash
+source /home/ubuntu/catkin_ws/devel/setup.bash
+export ROS_HOME=/home/ubuntu/.ros
+roslaunch hector_slam_launch tutorial.launch
+```
+
+### Next make you script executable and enable your systemd scripts by exceuting the following in a terminal
+
+```
+sudo systemctl enable roslaunch-hector-slam.service
+sudo chmod +x /usr/sbin/roslaunch-hector-slam
+```
+
+### ROS SERIAL
+
+### /etc/systemd/system/roslaunch-serial-node.service
+
+```
+sudo nano /etc/systemd/system/roslaunch-serial-node.service
+```
+
+```
+[Unit]
+After=NetworkManager.service time-sync.target roscore.service roslaunch-lidar.service roslaunch-hector-slam.service
+[Service]
+Type=simple
+User=ubuntu
+ExecStartPre=/bin/sleep 20
+ExecStart=/usr/sbin/roslaunch-serial-node
+ExecStop=/bin/kill -s SIGTERM -$MAINPID &
+[Install]
+WantedBy=multi-user.target
+```
+
+### /usr/sbin/roslaunch-serial-node
+
+
+```
+sudo nano /usr/sbin/roslaunch-serial-node
+```
+
+```
+#!/bin/bash
+source /home/ubuntu/catkin_ws/devel/setup.bash
+export ROS_HOME=/home/ubuntu/.ros
+rosrun rosserial_python serial_node.py /dev/ttyS0
+```
+
+### Next make you script executable and enable your systemd scripts by exceuting the following in a terminal
+
+```
+sudo systemctl enable roslaunch-serial-node.service
+sudo chmod +x /usr/sbin/roslaunch-serial-node
+```
+
+* PD: You can agrupate the all launcher files in a same launch file. I don't do that for flexibility and development, but you can if you want stable version, see  ROS documentation. 
+
+## (Optionally) Remotely connecting to ROS
+Something we would want to be able to do is to access the ROS communication messages from our laptop. There are a couple of steps to do here. On the robot check enviroment variables of ROS with `printenv | grep ROS`.
+
+* On the Robot, find the `ROS_IP` and `ROSMASTER_URI`. These two things are the information both machines will need to communicate. Find the `ROS_IP` by running `ifconfig`. 
+
+* On the Master (robot), run `roscore &`. 
+* * `ROS_IP` is its own IP.
+* * `ROS_MASTER_URI` is HTTP://<its own IP>:11311.
+
+In this example (the IPs would probably be different in your network), on the robot, we set: `export ROS_IP=192.168.1.5 export ROS_MASTER_URI=http://192.168.1.5:11311`. Consider to include in **.bashrc** on home user folder.
+
+#### Add to .bashrc:
+`export ROS_IP=192.168.1.5`
+`export ROS_MASTER_URI=http://192.168.1.5:11311`
