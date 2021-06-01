@@ -6,7 +6,7 @@ I have used:
 
 ## 1. Install Ubuntu Server 20.04 LTS 64-bit (Ubuntu Noetic)
 
-![](media\img\Install_Ubuntu_Server_20_04_LTS.png)
+![](media/img/Install_Ubuntu_Server_20_04_LTS.png)
 
 * SSH is enabled by default
 
@@ -45,8 +45,6 @@ Test the lidar with `roslaunch ydlidar_ros X4.launch`. Visualize the scans in Rv
 
 It may look something like this! Background may vary :)
 
-![Lidar Sample](media/lidar.jpg)
-
 #### Add to .bashrc:
 `source /home/ubuntu/catkin_ws/devel/setup.bash`
 
@@ -72,6 +70,8 @@ For a test run, try the [HelloWorld example](http://wiki.ros.org/rosserial_ardui
 * On the Raspberry Pi `roscore`
 * In a second Raspberry Pi terminal, `rosrun rosserial_python serial_node.py /dev/ttyS0`. Change `ttyS0` with the port of your Arduino. You can check the port by navigating to `~/dev/`, and observing which files disappear and re-appear when the Arduino is disconnected and connected. `rosrun rosserial_python serial_node.py _port:=/dev/ttyS0 _baud:=57600`
 * In a third terminal, `rostopic echo chatter` to see the messages being sent.
+
+##### /dev/ttyS0 refers to serial 0 gpio pins 
 
 ### Serial problems with Raspberry Pi 3
 
@@ -138,7 +138,7 @@ This should do the trick! Try it out!
 
 You should be able to see the results in Rviz. Choose the `/map` topic to visualize the map that was created.
 
-## 8. Lower Level Receive Position (That's where the Arduino comes in!)
+## 6. Lower Level Receive Position (That's where the Arduino comes in!)
 We now want to create a ROS package that would allow ROS communication to receive position of the robot. 
 
 Open four terminals, and run for each terminal one command in order and waiting the node init:
@@ -147,7 +147,8 @@ Open four terminals, and run for each terminal one command in order and waiting 
 * `roslaunch hector_slam_launch tutorial.launch`
 * `rosrun rosserial_python serial_node.py /dev/ttyS0`
 
-And try the code in arduino DUE and check that the arduino is receiving the position.
+And try the code in arduino DUE (SERIAL 1 for connecting with serial cables) and check that the arduino is receiving the position.
+##### If you want to connect Arduino via USB, you need to modify the ros hardware serial specification.
 
 ```cpp
 #include <ros.h>
@@ -184,7 +185,7 @@ void loop()
 }
 ```
 
-## 9. Launch files at startup!
+## 7. Launch files at startup!
 
 At times you create a script and then you want to have the scripts controlled by systemd or in some cases you wish to have the scripts getting restarted by itself when it is killed due to some reason. In such cases systemd in Linux helps to configure services which can be managed. To do so follow the following steps.
 
