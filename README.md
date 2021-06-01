@@ -6,7 +6,7 @@ I have used:
 
 ## 1. Install Ubuntu Server 20.04 LTS 64-bit (Ubuntu Noetic)
 
-![](media/img/Install_Ubuntu_Server_20_04_LTS.png)
+![](media/img/Install_Ubuntu_Server_20_04_LTS.PNG)
 
 * SSH is enabled by default
 
